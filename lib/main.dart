@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:geolocator/geolocator.dart';
@@ -12,16 +13,19 @@ const MethodChannel _nativeChannel = MethodChannel('driver_monitor/native');
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _initNotifications();
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 Future<void> _initNotifications() async {
   const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const initSettings = InitializationSettings(android: android);
+  const ios = DarwinInitializationSettings();
+  const initSettings = InitializationSettings(android: android, iOS: ios);
   await FlutterLocalNotificationsPlugin().initialize(initSettings);
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -30,13 +34,15 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         brightness: Brightness.dark,
       ),
-      home: Dashboard(),
+      home: const Dashboard(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class Dashboard extends StatefulWidget {
+  const Dashboard({super.key});
+
   @override
   State<Dashboard> createState() => _DashboardState();
 }
@@ -56,13 +62,15 @@ class _DashboardState extends State<Dashboard> {
   void initState() {
     super.initState();
     _requestPermissions();
-    _setupNativeCallback();
+    if (Platform.isIOS) {
+      _setupNativeCallback();
+    }
     _listenSensors();
     _listenLocation();
   }
 
   Future<void> _requestPermissions() async {
-    await Permission.locationWhenInUse.request();
+    await Permission.locationAlways.request();
     await Permission.sensors.request();
     await Permission.notification.request();
   }
@@ -85,11 +93,16 @@ class _DashboardState extends State<Dashboard> {
       priority: Priority.high,
       playSound: true,
     );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
     await _localNotif.show(
       999,
       '⚠️ Cảnh báo',
       'Phát hiện sử dụng điện thoại khi di chuyển ở ${spd.toStringAsFixed(1)} km/h',
-      NotificationDetails(android: androidDetails),
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
     if (await Vibration.hasVibrator() ?? false) {
       Vibration.vibrate(duration: 1000);
@@ -113,7 +126,6 @@ class _DashboardState extends State<Dashboard> {
 
     LocationPermission p = await Geolocator.checkPermission();
     if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
-
     if (p == LocationPermission.denied || p == LocationPermission.deniedForever) return;
 
     const settings = LocationSettings(
@@ -123,14 +135,14 @@ class _DashboardState extends State<Dashboard> {
 
     _posSub = Geolocator.getPositionStream(locationSettings: settings).listen((Position pos) {
       setState(() {
-        speed = (pos.speed >= 0) ? pos.speed * 3.6 : 0.0; // m/s -> km/h
+        speed = (pos.speed >= 0) ? pos.speed * 3.6 : 0.0;
       });
       _checkAlert();
     });
   }
 
   void _checkAlert() async {
-    bool isTilted = y.abs() > 4; // cảm biến nghiêng theo trục Y
+    bool isTilted = y.abs() > 4; // nghiêng mạnh theo trục Y
     bool overSpeed = speed > 30;
 
     if (isTilted && screenOn && overSpeed) {
@@ -144,6 +156,7 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> startBackgroundMonitoring() async {
+    if (!Platform.isIOS) return;
     try {
       await _nativeChannel.invokeMethod('startBackground');
       setState(() => monitoringBackground = true);
@@ -153,6 +166,7 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> stopBackgroundMonitoring() async {
+    if (!Platform.isIOS) return;
     try {
       await _nativeChannel.invokeMethod('stopBackground');
       setState(() => monitoringBackground = false);
@@ -175,14 +189,13 @@ class _DashboardState extends State<Dashboard> {
     return Scaffold(
       backgroundColor: Colors.grey[900],
       appBar: AppBar(
-        title: const Text("Driver Phone Monitor"),
+        title: const Text("Driver Phone Monitor (iOS)"),
         backgroundColor: Colors.blueGrey[900],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Cảnh báo
             AnimatedContainer(
               duration: const Duration(milliseconds: 500),
               height: 60,
@@ -202,60 +215,16 @@ class _DashboardState extends State<Dashboard> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Cảm biến gia tốc
-            Card(
-              color: Colors.blueGrey[800],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    const Text("Cảm biến gia tốc",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    Text("X = ${x.toStringAsFixed(2)}"),
-                    Text("Y = ${y.toStringAsFixed(2)}"),
-                    Text("Z = ${z.toStringAsFixed(2)}"),
-                  ],
-                ),
-              ),
-            ),
+            _buildAccelCard(),
             const SizedBox(height: 20),
-
-            // Tốc độ
-            Card(
-              color: Colors.blueGrey[800],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    const Text("Tốc độ (km/h)",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    Text("${speed.toStringAsFixed(1)} km/h",
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    LinearProgressIndicator(
-                      value: (speed / 100).clamp(0, 1),
-                      color: alert ? Colors.redAccent : Colors.greenAccent,
-                      backgroundColor: Colors.grey[700],
-                      minHeight: 10,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildSpeedCard(),
             const SizedBox(height: 20),
-
-            // Nút điều khiển nền
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
                     onPressed: monitoringBackground ? null : startBackgroundMonitoring,
-                    child: const Text('Bắt đầu giám sát nền (iOS/Android)'),
+                    child: const Text('Bắt đầu giám sát nền'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -263,7 +232,7 @@ class _DashboardState extends State<Dashboard> {
                   child: ElevatedButton(
                     onPressed: monitoringBackground ? stopBackgroundMonitoring : null,
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                    child: const Text('Dừng giám sát nền'),
+                    child: const Text('Dừng'),
                   ),
                 ),
               ],
@@ -273,4 +242,46 @@ class _DashboardState extends State<Dashboard> {
       ),
     );
   }
+
+  Widget _buildAccelCard() => Card(
+        color: Colors.blueGrey[800],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text("Cảm biến gia tốc (iOS)",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text("X = ${x.toStringAsFixed(2)}"),
+              Text("Y = ${y.toStringAsFixed(2)}"),
+              Text("Z = ${z.toStringAsFixed(2)}"),
+            ],
+          ),
+        ),
+      );
+
+  Widget _buildSpeedCard() => Card(
+        color: Colors.blueGrey[800],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text("Tốc độ (km/h)",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text("${speed.toStringAsFixed(1)} km/h",
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              LinearProgressIndicator(
+                value: (speed / 100).clamp(0, 1),
+                color: alert ? Colors.redAccent : Colors.greenAccent,
+                backgroundColor: Colors.grey[700],
+                minHeight: 10,
+              ),
+            ],
+          ),
+        ),
+      );
 }
