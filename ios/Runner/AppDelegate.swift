@@ -11,29 +11,39 @@ import UserNotifications
     let speedThresholdKmh: Double = 30.0
 
     override func application(
-      _ application: UIApplication,
-      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         
-        let controller = window?.rootViewController as! FlutterViewController
-        methodChannel = FlutterMethodChannel(name: channelName, binaryMessenger: controller.binaryMessenger)
-
-        methodChannel?.setMethodCallHandler({ [weak self] (call, result) in
-            if call.method == "startBackground" {
-                self?.startLocationUpdates()
-                result("started")
-            } else if call.method == "stopBackground" {
-                self?.stopLocationUpdates()
-                result("stopped")
-            } else {
-                result(FlutterMethodNotImplemented)
-            }
-        })
-
+        // Đăng ký toàn bộ plugin Flutter (bắt buộc)
+        GeneratedPluginRegistrant.register(with: self)
+        
+        // Thiết lập kênh giao tiếp native <-> Flutter
+        if let controller = window?.rootViewController as? FlutterViewController {
+            methodChannel = FlutterMethodChannel(name: channelName, binaryMessenger: controller.binaryMessenger)
+            
+            methodChannel?.setMethodCallHandler({ [weak self] (call, result) in
+                switch call.method {
+                case "startBackground":
+                    self?.startLocationUpdates()
+                    result("started")
+                case "stopBackground":
+                    self?.stopLocationUpdates()
+                    result("stopped")
+                default:
+                    result(FlutterMethodNotImplemented)
+                }
+            })
+        }
+        
+        // Xin quyền gửi thông báo
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        UNUserNotificationCenter.current().delegate = self
+        
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
 
+    // MARK: - Location Background
     func startLocationUpdates() {
         if locationManager == nil {
             locationManager = CLLocationManager()
@@ -46,11 +56,13 @@ import UserNotifications
         locationManager?.requestAlwaysAuthorization()
         locationManager?.allowsBackgroundLocationUpdates = true
         locationManager?.startUpdatingLocation()
+        print("🚗 Bắt đầu theo dõi vị trí nền")
     }
 
     func stopLocationUpdates() {
         locationManager?.stopUpdatingLocation()
         locationManager = nil
+        print("🛑 Dừng theo dõi vị trí nền")
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -68,11 +80,15 @@ import UserNotifications
 
     func sendBackgroundNotification(speed: Double) {
         let content = UNMutableNotificationContent()
-        content.title = "Cảnh báo lái xe"
-        content.body = "Phát hiện di chuyển \(String(format: "%.1f", speed)) km/h. Vui lòng tránh sử dụng điện thoại."
+        content.title = "⚠️ Cảnh báo lái xe"
+        content.body = "Phát hiện di chuyển \(String(format: "%.1f", speed)) km/h. Vui lòng không sử dụng điện thoại."
         content.sound = UNNotificationSound.default
 
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: nil
+        )
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 }

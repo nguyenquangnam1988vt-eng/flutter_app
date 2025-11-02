@@ -48,6 +48,10 @@
 	<!-- 🚀 Thêm đoạn này để cho phép chạy nền -->
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Ứng dụng cần quyền truy cập vị trí để đo tốc độ khi lái xe.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập cảm biến chuyển động để phát hiện điện thoại nghiêng khi lái xe.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Ứng dụng cần quyền thông báo để cảnh báo an toàn khi lái xe.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>Ứng dụng cần truy cập vị trí ngay cả khi đang chạy nền để giám sát tốc độ di chuyển.</string>
     <key>UIBackgroundModes</key>
