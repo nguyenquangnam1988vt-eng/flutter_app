@@ -1,6 +1,6 @@
 name: driver_phone_monitor
-description: A Flutter project to monitor phone while driving
-publish_to: 'none' # Remove this line if publishing to pub.dev
+description: Ứng dụng cảnh báo khi sử dụng điện thoại lái xe
+publish_to: 'none'
 
 version: 1.0.0+1
 
@@ -10,12 +10,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   sensors_plus: ^7.0.0
   geolocator: ^14.0.2
   permission_handler: ^10.4.0
-  flutter_local_notifications: ^13.0.0
   vibration: ^1.7.4
-  
+  flutter_local_notifications: ^13.0.0
 
 dev_dependencies:
   flutter_test:
