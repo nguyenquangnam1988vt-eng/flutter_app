@@ -78,7 +78,7 @@ import UserNotifications
     func sendBackgroundNotification(speed: Double) {
     let content = UNMutableNotificationContent()
     content.title = "Cảnh báo lái xe"
-    content.body = "Phát hiện di chuyển \(String(format: \"%.1f\", speed)) km/h. Vui lòng tránh sử dụng điện thoại."
+    content.body = "Phát hiện di chuyển \(String(format: "%.1f", speed)) km/h. Vui lòng tránh sử dụng điện thoại."
     content.sound = UNNotificationSound.default
 
     let request = UNNotificationRequest(identifier: "driver_bg_alert_\(UUID().uuidString)", content: content, trigger: nil)
