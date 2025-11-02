@@ -1,20 +1,25 @@
 name: driver_phone_monitor
-description: Monitor phone use while driving - iOS background via Location
-publish_to: "none"
-version: 0.1.0
+description: A Flutter project to monitor phone while driving
+publish_to: 'none' # Remove this line if publishing to pub.dev
+
+version: 1.0.0+1
 
 environment:
-  sdk: ">=2.18.0 <4.0.0"
+  sdk: ">=2.18.0 <3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
-  geolocator: ^9.0.2
-  sensors_plus: ^2.3.0
-  flutter_local_notifications: ^12.0.0
-  permission_handler: ^10.2.0
+  sensors_plus: ^7.0.0
+  geolocator: ^14.0.2
+  permission_handler: ^10.4.0
+  flutter_local_notifications: ^13.0.0
   vibration: ^1.7.4
+  
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true
