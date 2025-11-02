@@ -1,192 +1,266 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:vibration/vibration.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:vibration/vibration.dart';
-import 'package:audioplayers/audioplayers.dart';
+
+const MethodChannel _nativeChannel = MethodChannel('driver_monitor/native');
 
 void main() {
-  runApp(const DriverMonitorApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
 }
 
-class DriverMonitorApp extends StatefulWidget {
-  const DriverMonitorApp({Key? key}) : super(key: key);
-
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
-  State<DriverMonitorApp> createState() => _DriverMonitorAppState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Driver Phone Monitor',
+      theme: ThemeData.dark().copyWith(
+        primaryColor: Colors.blue,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+      ),
+      home: const Dashboard(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
 }
 
-class _DriverMonitorAppState extends State<DriverMonitorApp> {
-  double accelY = 0.0;
-  double speedKmh = 0.0;
-  bool isAlerting = false;
+class Dashboard extends StatefulWidget {
+  const Dashboard({super.key});
+  @override
+  State<Dashboard> createState() => _DashboardState();
+}
 
-  StreamSubscription? accelSubscription;
-  StreamSubscription<Position>? positionStream;
-  final player = AudioPlayer();
-  final FlutterLocalNotificationsPlugin notificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+class _DashboardState extends State<Dashboard> {
+  double x = 0, y = 0, z = 0;
+  double speed = 0;
+  bool alert = false;
+  bool monitoringBackground = false;
+
+  StreamSubscription<AccelerometerEvent>? _accelSub;
+  StreamSubscription<Position>? _posSub;
+
+  final FlutterLocalNotificationsPlugin _localNotif = FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
-    _initPermissions();
     _initNotifications();
-    _startAccelerometer();
-    _startGpsMonitoring();
-  }
-
-  Future<void> _initPermissions() async {
-    await Permission.location.request();
-    await Permission.notification.request();
-    await Permission.sensors.request();
-  }
-
-  Future<void> _initNotifications() async {
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidInit);
-    await notificationsPlugin.initialize(initSettings);
-  }
-
-  void _startAccelerometer() {
-    accelSubscription = accelerometerEvents.listen((AccelerometerEvent event) {
-      setState(() {
-        accelY = event.y;
-      });
-      _checkAlertCondition();
-    });
-  }
-
-  void _startGpsMonitoring() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      await Geolocator.openLocationSettings();
-      return;
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.deniedForever) return;
-    }
-
-    const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 0,
-    );
-
-    positionStream =
-        Geolocator.getPositionStream(locationSettings: locationSettings)
-            .listen((Position position) {
-      double newSpeed = (position.speed >= 0)
-          ? position.speed * 3.6
-          : 0; // m/s → km/h
-      setState(() {
-        speedKmh = newSpeed;
-      });
-      _checkAlertCondition();
-    });
-  }
-
-  void _checkAlertCondition() async {
-    bool overSpeed = speedKmh > 30.0;
-    bool phoneUpright = accelY.abs() > 4.0; // bạn yêu cầu ngưỡng này
-
-    if (overSpeed && phoneUpright) {
-      if (!isAlerting) {
-        _triggerWarning();
-        setState(() => isAlerting = true);
-      }
-    } else {
-      if (isAlerting) {
-        _stopWarning();
-        setState(() => isAlerting = false);
-      }
-    }
-  }
-
-  Future<void> _triggerWarning() async {
-    if (await Vibration.hasVibrator() ?? false) {
-      Vibration.vibrate(duration: 800);
-    }
-    await player.play(AssetSource('alert.mp3'));
-
-    const androidDetails = AndroidNotificationDetails(
-      'driver_alerts',
-      'Driver Alerts',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-    const notifDetails = NotificationDetails(android: androidDetails);
-
-    await notificationsPlugin.show(
-      0,
-      '⚠️ Cảnh báo',
-      'Phát hiện điện thoại dựng thẳng khi xe đang di chuyển nhanh!',
-      notifDetails,
-    );
-  }
-
-  Future<void> _stopWarning() async {
-    try {
-      await player.stop();
-    } catch (_) {}
-    if (await Vibration.hasVibrator() ?? false) Vibration.cancel();
+    _setupNativeCallback();
+    _requestPermissions();
+    _listenSensors();
+    _listenLocation();
   }
 
   @override
   void dispose() {
-    accelSubscription?.cancel();
-    positionStream?.cancel();
-    player.dispose();
+    _accelSub?.cancel();
+    _posSub?.cancel();
     super.dispose();
+  }
+
+  // --- Notification setup ---
+  Future<void> _initNotifications() async {
+    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iOS = DarwinInitializationSettings();
+    await _localNotif.initialize(const InitializationSettings(android: android, iOS: iOS));
+  }
+
+  void _setupNativeCallback() {
+    _nativeChannel.setMethodCallHandler((call) async {
+      if (call.method == 'backgroundSpeedAlert') {
+        final args = call.arguments as Map<dynamic, dynamic>?;
+        final bgSpeed = (args?['speed'] ?? 0).toDouble();
+        await _showLocalAlertFromNative(bgSpeed);
+      }
+    });
+  }
+
+  Future<void> _showLocalAlertFromNative(double speed) async {
+    const androidDetails = AndroidNotificationDetails(
+      'bg_alerts',
+      'Background Alerts',
+      channelDescription: 'Cảnh báo khi vượt ngưỡng tốc độ trong nền',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    await _localNotif.show(
+      999,
+      'Cảnh báo nền',
+      'Tốc độ ${speed.toStringAsFixed(1)} km/h — mở app để kiểm tra',
+      const NotificationDetails(android: androidDetails),
+    );
+    if (await Vibration.hasVibrator() ?? false) Vibration.vibrate(duration: 1000);
+  }
+
+  // --- Permissions ---
+  Future<void> _requestPermissions() async {
+    await Permission.locationWhenInUse.request();
+    await Permission.sensors.request();
+  }
+
+  // --- Sensor ---
+  void _listenSensors() {
+    _accelSub = accelerometerEvents.listen((event) {
+      setState(() {
+        x = event.x;
+        y = event.y;
+        z = event.z;
+      });
+      _checkAlert();
+    });
+  }
+
+  // --- GPS ---
+  void _listenLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission p = await Geolocator.checkPermission();
+    if (p == LocationPermission.denied) {
+      p = await Geolocator.requestPermission();
+    }
+    if (p == LocationPermission.deniedForever) return;
+
+    const settings = LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 1,
+    );
+
+    _posSub = Geolocator.getPositionStream(locationSettings: settings).listen((Position pos) {
+      setState(() {
+        speed = (pos.speed >= 0) ? pos.speed * 3.6 : 0.0;
+      });
+      _checkAlert();
+    });
+  }
+
+  // --- Background Monitor ---
+  Future<void> startBackgroundMonitoring() async {
+    try {
+      await _nativeChannel.invokeMethod('startBackground');
+      setState(() => monitoringBackground = true);
+    } on PlatformException catch (e) {
+      debugPrint('startBackground error: $e');
+    }
+  }
+
+  Future<void> stopBackgroundMonitoring() async {
+    try {
+      await _nativeChannel.invokeMethod('stopBackground');
+      setState(() => monitoringBackground = false);
+    } on PlatformException catch (e) {
+      debugPrint('stopBackground error: $e');
+    }
+  }
+
+  // --- Logic ---
+  void _checkAlert() async {
+    final bool isTilted = y.abs() > 4.0; // nghiêng quá 4 theo trục Y
+    final bool overSpeed = speed > 30.0;
+
+    if (isTilted && overSpeed) {
+      if (!alert) {
+        if (await Vibration.hasVibrator() ?? false) Vibration.vibrate(duration: 1000);
+      }
+      setState(() => alert = true);
+    } else {
+      setState(() => alert = false);
+    }
+  }
+
+  // --- UI helper ---
+  Color getAlertColor() => alert ? Colors.redAccent : Colors.greenAccent;
+
+  Widget _buildCard(String title, List<Widget> children) {
+    return Card(
+      color: const Color(0xFF1E2933),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+          const SizedBox(height: 10),
+          ...children,
+        ]),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Giám sát lái xe',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: Scaffold(
-        appBar: AppBar(title: const Text('Giám sát sử dụng điện thoại khi lái xe')),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                height: 60,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: isAlerting ? Colors.redAccent : Colors.green,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  isAlerting
-                      ? '⚠️ CẢNH BÁO: Dừng xe để sử dụng điện thoại!'
-                      : '✅ An toàn',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+    return Scaffold(
+      appBar: AppBar(title: const Text("Driver Phone Monitor")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Alert Banner
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              height: 60,
+              width: double.infinity,
+              decoration: BoxDecoration(color: getAlertColor(), borderRadius: BorderRadius.circular(12)),
+              alignment: Alignment.center,
+              child: Text(
+                alert ? "⚠️ Cảnh báo: Không sử dụng điện thoại!" : "✅ An toàn",
+                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Cảm biến
+            _buildCard("Cảm biến gia tốc", [
+              Text("x = ${x.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white)),
+              Text("y = ${y.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white)),
+              Text("z = ${z.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white)),
+            ]),
+            const SizedBox(height: 16),
+
+            // Tốc độ
+            _buildCard("Tốc độ (km/h)", [
+              Text("${speed.toStringAsFixed(1)} km/h",
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: (speed / 100).clamp(0, 1),
+                color: alert ? Colors.redAccent : Colors.greenAccent,
+                backgroundColor: Colors.grey[700],
+                minHeight: 8,
+              ),
+            ]),
+            const SizedBox(height: 16),
+
+            // Buttons
+            Row(children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: monitoringBackground ? null : startBackgroundMonitoring,
+                  child: const Text("Bắt đầu giám sát nền"),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text('Tốc độ: ${speedKmh.toStringAsFixed(1)} km/h',
-                  style: const TextStyle(fontSize: 22)),
-              const SizedBox(height: 10),
-              Text('Trục Y (điện thoại nghiêng): ${accelY.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 22)),
-              const SizedBox(height: 20),
-              const Text(
-                'Ứng dụng sẽ cảnh báo khi tốc độ >30 km/h và điện thoại dựng thẳng (|Y| > 4)',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-                textAlign: TextAlign.center,
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: monitoringBackground ? stopBackgroundMonitoring : null,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                  child: const Text("Dừng giám sát nền"),
+                ),
               ),
-            ],
-          ),
+            ]),
+            const SizedBox(height: 16),
+
+            const Text(
+              "Ghi chú: iOS cần bật Background Modes → Location updates và cấp quyền “Allow Always”.",
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  sensors_plus: ^6.0.1
+  sensors_plus: ^7.0.0
   geolocator: ^14.0.2
   permission_handler: ^10.4.0
   vibration: ^1.7.4
