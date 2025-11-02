@@ -45,5 +45,16 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- 🚀 Thêm đoạn này để cho phép chạy nền -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Ứng dụng cần quyền truy cập vị trí để đo tốc độ khi lái xe.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Ứng dụng cần truy cập vị trí ngay cả khi đang chạy nền để giám sát tốc độ di chuyển.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+    </array>
+    <!-- ✅ Hết phần thêm -->
+
 </dict>
 </plist>

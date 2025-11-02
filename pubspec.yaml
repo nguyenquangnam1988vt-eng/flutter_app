@@ -15,7 +15,8 @@ dependencies:
   geolocator: ^14.0.2
   permission_handler: ^10.4.0
   vibration: ^1.7.4
-  flutter_local_notifications: ^13.0.0
+  flutter_local_notifications: ^17.2.2
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -23,3 +24,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/alert.mp3
+
