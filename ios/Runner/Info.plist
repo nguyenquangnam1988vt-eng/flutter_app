@@ -1,10 +1,38 @@
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>Ứng dụng cần vị trí để kiểm tra tốc độ di chuyển.</string>
-<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>Ứng dụng cần vị trí để cảnh báo khi di chuyển trong nền.</string>
-<key>NSLocationAlwaysUsageDescription</key>
-<string>Ứng dụng cần vị trí liên tục để giám sát chạy xe và cảnh báo khi cần.</string>
-<key>UIBackgroundModes</key>
-<array>
-  <string>location</string>
-</array>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Tên ứng dụng -->
+    <key>CFBundleName</key>
+    <string>Driver Phone Monitor</string>
+    <key>CFBundleDisplayName</key>
+    <string>Driver Phone Monitor</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.example.driverphonemonitor</string>
+
+    <!-- Phiên bản -->
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+
+    <!-- Quyền sử dụng location -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Ứng dụng cần vị trí để kiểm tra tốc độ khi lái xe</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Ứng dụng cần vị trí để kiểm tra tốc độ khi lái xe ngay cả khi chạy nền</string>
+
+    <!-- Quyền truy cập Motion & Fitness -->
+    <key>NSMotionUsageDescription</key>
+    <string>Ứng dụng cần cảm biến để xác định điện thoại có nghiêng hay không</string>
+
+    <!-- Background modes để chạy ngầm -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+        <string>fetch</string>
+    </array>
+
+</dict>
+</plist>
