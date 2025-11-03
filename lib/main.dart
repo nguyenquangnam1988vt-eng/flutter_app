@@ -7,6 +7,8 @@ import 'package:vibration/vibration.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'dart:math';
 
 const MethodChannel _nativeChannel = MethodChannel('driver_monitor/native');
 
@@ -52,11 +54,14 @@ class _DashboardState extends State<Dashboard> {
   double speed = 0;
   bool alert = false;
   bool monitoringBackground = false;
-  bool screenOn = true; // giả lập
+  bool screenOn = true;
 
+  final List<double> _yBuffer = [];
+  final int _bufferSize = 20; // dùng cho RMS trục Y
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<Position>? _posSub;
   final FlutterLocalNotificationsPlugin _localNotif = FlutterLocalNotificationsPlugin();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -97,13 +102,19 @@ class _DashboardState extends State<Dashboard> {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      sound: 'alert.mp3',
     );
+
     await _localNotif.show(
       999,
       '⚠️ Cảnh báo',
       'Phát hiện sử dụng điện thoại khi di chuyển ở ${spd.toStringAsFixed(1)} km/h',
       const NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
+
+    // Phát âm thanh trực tiếp (iOS và Android)
+    await _audioPlayer.play(AssetSource('alert.mp3'));
+
     if (await Vibration.hasVibrator() ?? false) {
       Vibration.vibrate(duration: 1000);
     }
@@ -116,13 +127,16 @@ class _DashboardState extends State<Dashboard> {
         y = event.y;
         z = event.z;
       });
+
+      _yBuffer.add(event.y);
+      if (_yBuffer.length > _bufferSize) _yBuffer.removeAt(0);
+
       _checkAlert();
     });
   }
 
   void _listenLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+    if (!await Geolocator.isLocationServiceEnabled()) return;
 
     LocationPermission p = await Geolocator.checkPermission();
     if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
@@ -142,10 +156,16 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _checkAlert() async {
-    bool isTilted = y.abs() > 4; // nghiêng mạnh theo trục Y
-    bool overSpeed = speed > 30;
+    // RMS trục Y
+    final rms = _yBuffer.isEmpty
+        ? 0.0
+        : sqrt(_yBuffer.fold<double>(0, (sum, val) => sum + val * val) / _yBuffer.length);
 
-    if (isTilted && screenOn && overSpeed) {
+    bool overSpeed = speed > 10;
+    bool yTilted = y.abs() > 6;
+    bool rmsValid = rms >= 0.5 && rms <= 3.0;
+
+    if (overSpeed && yTilted && rmsValid && screenOn) {
       if (!alert) {
         await _showLocalAlert(speed);
       }

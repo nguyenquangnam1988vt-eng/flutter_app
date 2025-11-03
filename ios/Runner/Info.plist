@@ -28,12 +28,14 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -41,24 +43,33 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<!-- 🚀 Thêm đoạn này để cho phép chạy nền -->
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Ứng dụng cần quyền truy cập vị trí để đo tốc độ khi lái xe.</string>
+
+	<!-- 🚀 QUYỀN VÀ CHẾ ĐỘ NỀN -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập vị trí để đo tốc độ khi lái xe.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Ứng dụng cần truy cập vị trí ngay cả khi đang chạy nền để giám sát tốc độ di chuyển.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Ứng dụng cần quyền truy cập cảm biến chuyển động để phát hiện điện thoại nghiêng khi lái xe.</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Ứng dụng cần quyền thông báo để cảnh báo an toàn khi lái xe.</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Ứng dụng cần truy cập vị trí ngay cả khi đang chạy nền để giám sát tốc độ di chuyển.</string>
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>location</string>
-    </array>
-    <!-- ✅ Hết phần thêm -->
+	<string>Ứng dụng cần quyền gửi thông báo cảnh báo an toàn khi lái xe.</string>
+
+	<!-- ✅ Chạy nền & phát âm thanh -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>audio</string>
+		<string>processing</string>
+	</array>
+
+	<!-- 🔔 Cho phép phát thông báo khi nền -->
+	<key>UNUserNotificationCenter</key>
+	<true/>
 
 </dict>
 </plist>
