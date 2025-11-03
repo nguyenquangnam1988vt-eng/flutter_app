@@ -161,7 +161,7 @@ class _DashboardState extends State<Dashboard> {
         ? 0.0
         : sqrt(_yBuffer.fold<double>(0, (sum, val) => sum + val * val) / _yBuffer.length);
 
-    bool overSpeed = speed > 10;
+    bool overSpeed = speed > 5;
     bool yTilted = y.abs() > 6;
     bool rmsValid = rms >= 0.5 && rms <= 3.0;
 
