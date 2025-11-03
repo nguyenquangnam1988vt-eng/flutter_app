@@ -57,10 +57,12 @@ class _DashboardState extends State<Dashboard> {
   bool screenOn = true;
 
   final List<double> _yBuffer = [];
-  final int _bufferSize = 20; // dùng cho RMS trục Y
+  final List<double> _zBuffer = [];
+  final int _bufferSize = 20; // dùng cho RMS trục Y và Z
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<Position>? _posSub;
-  final FlutterLocalNotificationsPlugin _localNotif = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotif =
+      FlutterLocalNotificationsPlugin();
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
@@ -131,6 +133,9 @@ class _DashboardState extends State<Dashboard> {
       _yBuffer.add(event.y);
       if (_yBuffer.length > _bufferSize) _yBuffer.removeAt(0);
 
+      _zBuffer.add(event.z);
+      if (_zBuffer.length > _bufferSize) _zBuffer.removeAt(0);
+
       _checkAlert();
     });
   }
@@ -139,15 +144,18 @@ class _DashboardState extends State<Dashboard> {
     if (!await Geolocator.isLocationServiceEnabled()) return;
 
     LocationPermission p = await Geolocator.checkPermission();
-    if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
-    if (p == LocationPermission.denied || p == LocationPermission.deniedForever) return;
+    if (p == LocationPermission.denied)
+      p = await Geolocator.requestPermission();
+    if (p == LocationPermission.denied || p == LocationPermission.deniedForever)
+      return;
 
     const settings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
       distanceFilter: 1,
     );
 
-    _posSub = Geolocator.getPositionStream(locationSettings: settings).listen((Position pos) {
+    _posSub = Geolocator.getPositionStream(locationSettings: settings)
+        .listen((Position pos) {
       setState(() {
         speed = (pos.speed >= 0) ? pos.speed * 3.6 : 0.0;
       });
@@ -157,15 +165,23 @@ class _DashboardState extends State<Dashboard> {
 
   void _checkAlert() async {
     // RMS trục Y
-    final rms = _yBuffer.isEmpty
+    final rmsY = _yBuffer.isEmpty
         ? 0.0
-        : sqrt(_yBuffer.fold<double>(0, (sum, val) => sum + val * val) / _yBuffer.length);
+        : sqrt(_yBuffer.fold<double>(0, (sum, val) => sum + val * val) /
+            _yBuffer.length);
+
+    // RMS trục Z
+    final rmsZ = _zBuffer.isEmpty
+        ? 0.0
+        : sqrt(_zBuffer.fold<double>(0, (sum, val) => sum + val * val) /
+            _zBuffer.length);
 
     bool overSpeed = speed > 5;
-    bool yTilted = y.abs() > 6;
-    bool rmsValid = rms >= 0.5 && rms <= 3.0;
+    bool yTilted = y > 5.0; // CHỈ cảnh báo khi y > 5.0 (bỏ abs)
+    bool rmsYValid = rmsY >= 0.5 && rmsY <= 3.0;
+    bool rmsZValid = rmsZ <= 1.5; // RMS trục Z trong khoảng 0 - 1.5
 
-    if (overSpeed && yTilted && rmsValid && screenOn) {
+    if (overSpeed && yTilted && rmsYValid && rmsZValid && screenOn) {
       if (!alert) {
         await _showLocalAlert(speed);
       }
@@ -243,15 +259,18 @@ class _DashboardState extends State<Dashboard> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: monitoringBackground ? null : startBackgroundMonitoring,
+                    onPressed:
+                        monitoringBackground ? null : startBackgroundMonitoring,
                     child: const Text('Bắt đầu giám sát nền'),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: monitoringBackground ? stopBackgroundMonitoring : null,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                    onPressed:
+                        monitoringBackground ? stopBackgroundMonitoring : null,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent),
                     child: const Text('Dừng'),
                   ),
                 ),
@@ -292,7 +311,8 @@ class _DashboardState extends State<Dashboard> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Text("${speed.toStringAsFixed(1)} km/h",
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               LinearProgressIndicator(
                 value: (speed / 100).clamp(0, 1),
