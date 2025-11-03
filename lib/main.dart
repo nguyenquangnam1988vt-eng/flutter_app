@@ -8,7 +8,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:screen_state/screen_state.dart';
 import 'dart:math';
 
 const MethodChannel _nativeChannel = MethodChannel('driver_monitor/native');
@@ -55,11 +54,7 @@ class _DashboardState extends State<Dashboard> {
   double speed = 0;
   bool alert = false;
   bool monitoringBackground = false;
-
-  // Biến để lưu trạng thái màn hình bật/tắt
   bool screenOn = true;
-  final ScreenState _screenState = ScreenState();
-  StreamSubscription<ScreenStateEvent>? _screenSub;
 
   final List<double> _yBuffer = [];
   final List<double> _zBuffer = [];
@@ -73,22 +68,12 @@ class _DashboardState extends State<Dashboard> {
   @override
   void initState() {
     super.initState();
-    _listenScreenState(); // Lắng nghe trạng thái màn hình
     _requestPermissions();
     if (Platform.isIOS) {
       _setupNativeCallback();
     }
     _listenSensors();
     _listenLocation();
-  }
-
-  void _listenScreenState() {
-    _screenSub = _screenState.screenStateStream?.listen((event) {
-      setState(() {
-        screenOn = event == ScreenStateEvent.SCREEN_ON;
-      });
-      debugPrint("📱 Màn hình: ${screenOn ? 'BẬT' : 'TẮT'}");
-    });
   }
 
   Future<void> _requestPermissions() async {
@@ -129,6 +114,7 @@ class _DashboardState extends State<Dashboard> {
       const NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
 
+    // Phát âm thanh trực tiếp (iOS và Android)
     await _audioPlayer.play(AssetSource('alert.mp3'));
 
     if (await Vibration.hasVibrator() ?? false) {
@@ -158,13 +144,10 @@ class _DashboardState extends State<Dashboard> {
     if (!await Geolocator.isLocationServiceEnabled()) return;
 
     LocationPermission p = await Geolocator.checkPermission();
-    if (p == LocationPermission.denied) {
+    if (p == LocationPermission.denied)
       p = await Geolocator.requestPermission();
-    }
-    if (p == LocationPermission.denied ||
-        p == LocationPermission.deniedForever) {
+    if (p == LocationPermission.denied || p == LocationPermission.deniedForever)
       return;
-    }
 
     const settings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
@@ -181,11 +164,13 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _checkAlert() async {
+    // RMS trục Y
     final rmsY = _yBuffer.isEmpty
         ? 0.0
         : sqrt(_yBuffer.fold<double>(0, (sum, val) => sum + val * val) /
             _yBuffer.length);
 
+    // RMS trục Z
     final rmsZ = _zBuffer.isEmpty
         ? 0.0
         : sqrt(_zBuffer.fold<double>(0, (sum, val) => sum + val * val) /
@@ -228,7 +213,6 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   void dispose() {
-    _screenSub?.cancel();
     _accelSub?.cancel();
     _posSub?.cancel();
     super.dispose();
