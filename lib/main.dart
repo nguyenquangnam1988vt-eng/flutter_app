@@ -130,13 +130,17 @@ class _DashboardState extends State<Dashboard> {
         z = event.z;
       });
 
+      // Tính tổng vector trọng lực và độ nghiêng
+      double g = sqrt(x * x + y * y + z * z);
+      double tilt = (z / g).abs(); // 1 = đứng thẳng, 0 = nằm ngang
+
       // Cập nhật buffer Y
       _yBuffer.add(y);
       if (_yBuffer.length > _bufferSize) {
         _yBuffer.removeAt(0);
       }
 
-      _checkAlert();
+      _checkAlert(g, tilt);
     });
   }
 
@@ -159,7 +163,6 @@ class _DashboardState extends State<Dashboard> {
       setState(() {
         speed = (pos.speed >= 0) ? pos.speed * 3.6 : 0.0;
       });
-      _checkAlert();
     });
   }
 
@@ -169,15 +172,14 @@ class _DashboardState extends State<Dashboard> {
     return sqrt(sumSq / values.length);
   }
 
-  void _checkAlert() async {
+  void _checkAlert(double g, double tilt) async {
     bool overSpeed = speed > 1.0; // tốc độ > 1 km/h
-    bool yTilted = y > 6.0; // trục Y nghiêng
-    bool zValid = z < 6.0; // trục Z nhỏ hơn 6
-
+    bool isTilted = tilt < 0.6; // nghiêng nhiều (mặt Z không còn hướng lên)
+    bool gravityOK = g > 8.0 && g < 11.0; // lực trọng trường hợp lý
     double rmsY = _calculateRMS(_yBuffer);
-    bool rmsYStable = rmsY >= 0.5 && rmsY <= 3; // dao động nhỏ, ổn định
+    bool rmsYStable = rmsY >= 0.5 && rmsY <= 3;
 
-    if (overSpeed && yTilted && zValid && rmsYStable && screenOn) {
+    if (overSpeed && isTilted && gravityOK && rmsYStable && screenOn) {
       if (!alert) {
         await _showLocalAlert(speed);
       }
@@ -219,6 +221,8 @@ class _DashboardState extends State<Dashboard> {
   @override
   Widget build(BuildContext context) {
     double rmsY = _calculateRMS(_yBuffer);
+    double g = sqrt(x * x + y * y + z * z);
+    double tilt = (z / g).abs();
 
     return Scaffold(
       backgroundColor: Colors.grey[900],
@@ -240,7 +244,9 @@ class _DashboardState extends State<Dashboard> {
               ),
               alignment: Alignment.center,
               child: Text(
-                alert ? "⚠️ Cảnh báo: Không sử dụng điện thoại!" : "✅ An toàn",
+                alert
+                    ? "⚠️ Cảnh báo: Không sử dụng điện thoại!"
+                    : "✅ An toàn (Tilt ${(tilt * 100).toStringAsFixed(1)}%)",
                 style: const TextStyle(
                   color: Colors.black,
                   fontWeight: FontWeight.bold,
@@ -249,7 +255,7 @@ class _DashboardState extends State<Dashboard> {
               ),
             ),
             const SizedBox(height: 20),
-            _buildAccelCard(rmsY),
+            _buildAccelCard(rmsY, g, tilt),
             const SizedBox(height: 20),
             _buildSpeedCard(),
             const SizedBox(height: 20),
@@ -280,7 +286,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _buildAccelCard(double rmsY) => Card(
+  Widget _buildAccelCard(double rmsY, double g, double tilt) => Card(
         color: Colors.blueGrey[800],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
@@ -295,6 +301,8 @@ class _DashboardState extends State<Dashboard> {
               Text("Z = ${z.toStringAsFixed(2)}"),
               const SizedBox(height: 10),
               Text("RMS(Y) = ${rmsY.toStringAsFixed(2)}"),
+              Text("G (tổng vector) = ${g.toStringAsFixed(2)} m/s²"),
+              Text("Tilt (độ nghiêng Z) = ${(tilt * 100).toStringAsFixed(1)}%"),
             ],
           ),
         ),
