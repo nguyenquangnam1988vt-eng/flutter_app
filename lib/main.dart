@@ -184,8 +184,8 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _checkAlert(double g, double tilt) async {
-    bool overSpeed = speed > 1.0; // tốc độ > 1 km/h
-    bool isTilted = tilt < 0.6; // nghiêng nhiều (mặt Z không còn hướng lên)
+    bool overSpeed = speed > 5.0; // tốc độ > 5 km/h
+    bool isTilted = tilt > 0.6; // nghiêng nhiều (mặt Z không còn hướng lên)
     bool gravityOK = g > 8.0 && g < 11.0; // lực trọng trường hợp lý
 
     // Tính độ lệch chuẩn dài hạn 3 giây
