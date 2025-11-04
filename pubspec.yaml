@@ -17,6 +17,10 @@ dependencies:
   vibration: ^1.7.4
   flutter_local_notifications: ^13.0.0
   audioplayers: ^6.1.0
+<<<<<<< HEAD
+  screen_state: ^2.0.0
+=======
+>>>>>>> 2a6be68 (Initial commit)
 
 dev_dependencies:
   flutter_test:
