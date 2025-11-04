@@ -56,11 +56,11 @@ class _DashboardState extends State<Dashboard> {
   bool monitoringBackground = false;
   bool screenOn = true;
 
-  // Bộ đệm để tính RMS ngắn hạn (≈0.5s)
+  // Bộ đệm để tính độ lệch chuẩn ngắn hạn (≈0.5s)
   final List<double> _yBuffer = [];
   static const int _bufferSize = 30; // 30 mẫu ~0.5 giây (30 Hz)
 
-  // Bộ đệm để tính RMS dài hạn (3 giây)
+  // Bộ đệm để tính độ lệch chuẩn dài hạn (3 giây)
   final List<double> _yBufferLong = [];
   static const int _bufferLongSize = 90; // 90 mẫu ~3 giây (30 Hz)
 
@@ -98,14 +98,14 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> _showLocalAlert(double spd) async {
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       'driver_alerts',
       'Driver Alerts',
       importance: Importance.max,
       priority: Priority.high,
       playSound: true,
     );
-    const iosDetails = DarwinNotificationDetails(
+    final iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
@@ -116,7 +116,7 @@ class _DashboardState extends State<Dashboard> {
       999,
       '⚠️ Cảnh báo',
       'Phát hiện sử dụng điện thoại khi di chuyển ở ${spd.toStringAsFixed(1)} km/h',
-      const NotificationDetails(android: androidDetails, iOS: iosDetails),
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
 
     await _audioPlayer.play(AssetSource('assets/alert.mp3'));
@@ -176,10 +176,11 @@ class _DashboardState extends State<Dashboard> {
     });
   }
 
-  double _calculateRMS(List<double> values) {
+  double _calculateStdDev(List<double> values) {
     if (values.isEmpty) return 0.0;
-    double sumSq = values.fold(0, (sum, v) => sum + v * v);
-    return sqrt(sumSq / values.length);
+    double mean = values.reduce((a, b) => a + b) / values.length;
+    double sumSquaredDiff = values.fold(0.0, (sum, val) => sum + pow(val - mean, 2));
+    return sqrt(sumSquaredDiff / values.length);
   }
 
   void _checkAlert(double g, double tilt) async {
@@ -187,11 +188,12 @@ class _DashboardState extends State<Dashboard> {
     bool isTilted = tilt < 0.6; // nghiêng nhiều (mặt Z không còn hướng lên)
     bool gravityOK = g > 8.0 && g < 11.0; // lực trọng trường hợp lý
 
-    // Tính RMS dài hạn 3 giây
-    double rmsYLong = _calculateRMS(_yBufferLong);
-    bool rmsYStable = rmsYLong >= 0.5 && rmsYLong <= 3;
+    // Tính độ lệch chuẩn dài hạn 3 giây
+    double stdDevYLong = _calculateStdDev(_yBufferLong);
+    // Cảnh báo khi dao động thấp (điện thoại giữ ổn định)
+    bool stdDevYStable = stdDevYLong <= 1.5;
 
-    if (overSpeed && isTilted && gravityOK && rmsYStable && screenOn) {
+    if (overSpeed && isTilted && gravityOK && stdDevYStable && screenOn) {
       if (!alert) {
         await _showLocalAlert(speed);
       }
@@ -232,8 +234,8 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   Widget build(BuildContext context) {
-    double rmsYShort = _calculateRMS(_yBuffer);
-    double rmsYLong = _calculateRMS(_yBufferLong);
+    double stdDevYShort = _calculateStdDev(_yBuffer);
+    double stdDevYLong = _calculateStdDev(_yBufferLong);
     double g = sqrt(x * x + y * y + z * z);
     double tilt = (z / g).abs();
 
@@ -268,7 +270,7 @@ class _DashboardState extends State<Dashboard> {
               ),
             ),
             const SizedBox(height: 20),
-            _buildAccelCard(rmsYShort, rmsYLong, g, tilt),
+            _buildAccelCard(stdDevYShort, stdDevYLong, g, tilt),
             const SizedBox(height: 20),
             _buildSpeedCard(),
             const SizedBox(height: 20),
@@ -300,7 +302,7 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Widget _buildAccelCard(
-          double rmsYShort, double rmsYLong, double g, double tilt) =>
+          double stdDevYShort, double stdDevYLong, double g, double tilt) =>
       Card(
         color: Colors.blueGrey[800],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -315,8 +317,8 @@ class _DashboardState extends State<Dashboard> {
               Text("Y = ${y.toStringAsFixed(2)}"),
               Text("Z = ${z.toStringAsFixed(2)}"),
               const SizedBox(height: 10),
-              Text("RMS(Y) ngắn hạn = ${rmsYShort.toStringAsFixed(2)}"),
-              Text("RMS(Y) dài hạn (3 giây) = ${rmsYLong.toStringAsFixed(2)}"),
+              Text("Độ lệch chuẩn Y ngắn hạn = ${stdDevYShort.toStringAsFixed(2)}"),
+              Text("Độ lệch chuẩn Y dài hạn (3 giây) = ${stdDevYLong.toStringAsFixed(2)}"),
               Text("G (tổng vector) = ${g.toStringAsFixed(2)} m/s²"),
               Text("Tilt (độ nghiêng Z) = ${(tilt * 100).toStringAsFixed(1)}%"),
             ],
