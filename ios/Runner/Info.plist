@@ -3,77 +3,81 @@
 <plist version="1.0">
 <dict>
 
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>App1</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>app1</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleDisplayName</key>
+    <string>App1</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>app1</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(FLUTTER_BUILD_NAME)</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>CFBundleVersion</key>
+    <string>$(FLUTTER_BUILD_NUMBER)</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+    <key>UIMainStoryboardFile</key>
+    <string>Main</string>
 
-	<!-- 🚀 Hướng xoay màn hình -->
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
+    <!-- 🚀 Hướng xoay màn hình -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
 
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
 
-	<!-- ✅ QUYỀN TRUY CẬP NGƯỜI DÙNG -->
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Ứng dụng cần truy cập vị trí để đo tốc độ kết nối mạng và phát hiện chuyển động.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Ứng dụng cần truy cập vị trí ngay cả khi chạy nền để đo tốc độ mạng và hành trình di chuyển.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Ứng dụng cần quyền truy cập vị trí liên tục để theo dõi kết nối và vị trí.</string>
-	<key>NSMotionUsageDescription</key>
-	<string>Ứng dụng cần quyền truy cập cảm biến chuyển động để phát hiện thao tác điện thoại.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>Ứng dụng cần quyền gửi thông báo và thu thập dữ liệu cảm biến phục vụ cảnh báo an toàn.</string>
+    <!-- ✅ QUYỀN TRUY CẬP NGƯỜI DÙNG -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Ứng dụng cần truy cập vị trí để đo tốc độ kết nối mạng và phát hiện chuyển động.</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>Ứng dụng cần truy cập vị trí ngay cả khi chạy nền để đo tốc độ mạng và hành trình di chuyển.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Ứng dụng cần quyền truy cập vị trí liên tục để theo dõi kết nối và vị trí.</string>
+    <key>NSMotionUsageDescription</key>
+    <string>Ứng dụng cần quyền truy cập cảm biến chuyển động để phát hiện thao tác điện thoại.</string>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>Ứng dụng cần quyền gửi thông báo và thu thập dữ liệu cảm biến phục vụ cảnh báo an toàn.</string>
 
-	<!-- 🔔 Cho phép thông báo nền -->
-	<key>UNUserNotificationCenter</key>
-	<true/>
+    <!-- 🔔 Cho phép thông báo nền -->
+    <key>UNUserNotificationCenter</key>
+    <true/>
 
-	<!-- 🔊 CÁC CHẾ ĐỘ CHẠY NỀN -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>location</string>
-		<string>audio</string>
-		<string>processing</string>
-	</array>
+    <!-- 🔊 CÁC CHẾ ĐỘ CHẠY NỀN -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>       <!-- Background fetch định kỳ -->
+        <string>location</string>    <!-- Lấy vị trí nền -->
+        <string>audio</string>       <!-- Phát âm thanh nền -->
+        <string>processing</string>  <!-- Xử lý nền (nếu cần) -->
+    </array>
+
+    <!-- 🎵 Bổ sung audio session option cho iOS -->
+    <key>UIBackgroundAudio</key>
+    <true/>
 
 </dict>
 </plist>
