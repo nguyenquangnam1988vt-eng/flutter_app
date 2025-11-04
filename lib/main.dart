@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:screen_state/screen_state.dart'; // <- Thêm
 
 const MethodChannel _nativeChannel = MethodChannel('driver_monitor/native');
 
@@ -56,29 +57,27 @@ class _DashboardState extends State<Dashboard> {
   bool monitoringBackground = false;
   bool screenOn = true;
 
-  // Bộ đệm để tính độ lệch chuẩn ngắn hạn (≈0.5s)
   final List<double> _yBuffer = [];
-  static const int _bufferSize = 30; // 30 mẫu ~0.5 giây (30 Hz)
+  static const int _bufferSize = 30;
 
-  // Bộ đệm để tính độ lệch chuẩn dài hạn (3 giây)
   final List<double> _yBufferLong = [];
-  static const int _bufferLongSize = 90; // 90 mẫu ~3 giây (30 Hz)
+  static const int _bufferLongSize = 90;
 
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<Position>? _posSub;
-  final FlutterLocalNotificationsPlugin _localNotif =
-      FlutterLocalNotificationsPlugin();
+  StreamSubscription<ScreenStateEvent>? _screenSub; // <- Thêm
+  Screen? _screenManager; // <- Thêm
+  final FlutterLocalNotificationsPlugin _localNotif = FlutterLocalNotificationsPlugin();
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
     _requestPermissions();
-    if (Platform.isIOS) {
-      _setupNativeCallback();
-    }
+    if (Platform.isIOS) _setupNativeCallback();
     _listenSensors();
     _listenLocation();
+    _startScreenListener(); // <- Thêm
   }
 
   Future<void> _requestPermissions() async {
@@ -134,21 +133,14 @@ class _DashboardState extends State<Dashboard> {
         z = event.z;
       });
 
-      // Tính tổng vector trọng lực và độ nghiêng
       double g = sqrt(x * x + y * y + z * z);
-      double tilt = (z / g).abs(); // 1 = đứng thẳng, 0 = nằm ngang
+      double tilt = (z / g).abs();
 
-      // Cập nhật buffer ngắn hạn
       _yBuffer.add(y);
-      if (_yBuffer.length > _bufferSize) {
-        _yBuffer.removeAt(0);
-      }
+      if (_yBuffer.length > _bufferSize) _yBuffer.removeAt(0);
 
-      // Cập nhật buffer dài hạn
       _yBufferLong.add(y);
-      if (_yBufferLong.length > _bufferLongSize) {
-        _yBufferLong.removeAt(0);
-      }
+      if (_yBufferLong.length > _bufferLongSize) _yBufferLong.removeAt(0);
 
       _checkAlert(g, tilt);
     });
@@ -158,10 +150,8 @@ class _DashboardState extends State<Dashboard> {
     if (!await Geolocator.isLocationServiceEnabled()) return;
 
     LocationPermission p = await Geolocator.checkPermission();
-    if (p == LocationPermission.denied)
-      p = await Geolocator.requestPermission();
-    if (p == LocationPermission.denied || p == LocationPermission.deniedForever)
-      return;
+    if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
+    if (p == LocationPermission.denied || p == LocationPermission.deniedForever) return;
 
     const settings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
@@ -176,6 +166,23 @@ class _DashboardState extends State<Dashboard> {
     });
   }
 
+  void _startScreenListener() {
+    _screenManager = Screen();
+    try {
+      _screenSub = _screenManager!.screenStateStream.listen((event) {
+        setState(() {
+          if (event == ScreenStateEvent.SCREEN_ON) {
+            screenOn = true;
+          } else if (event == ScreenStateEvent.SCREEN_OFF) {
+            screenOn = false;
+          }
+        });
+      });
+    } on ScreenStateException catch (e) {
+      debugPrint("Screen state error: $e");
+    }
+  }
+
   double _calculateStdDev(List<double> values) {
     if (values.isEmpty) return 0.0;
     double mean = values.reduce((a, b) => a + b) / values.length;
@@ -184,19 +191,15 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _checkAlert(double g, double tilt) async {
-    bool overSpeed = speed > 5.0; // tốc độ > 5 km/h
-    bool isTilted = tilt > 0.6; // nghiêng nhiều (mặt Z không còn hướng lên)
-    bool gravityOK = g > 8.0 && g < 11.0; // lực trọng trường hợp lý
-
-    // Tính độ lệch chuẩn dài hạn 3 giây
+    bool overSpeed = speed > 5.0;
+    bool isTilted = tilt > 0.6;
+    bool gravityOK = g > 8.0 && g < 11.0;
     double stdDevYLong = _calculateStdDev(_yBufferLong);
-    // Cảnh báo khi dao động thấp (điện thoại giữ ổn định)
     bool stdDevYStable = stdDevYLong <= 1.5;
 
+    // Cảnh báo chỉ khi màn hình bật hoặc mở khóa
     if (overSpeed && isTilted && gravityOK && stdDevYStable && screenOn) {
-      if (!alert) {
-        await _showLocalAlert(speed);
-      }
+      if (!alert) await _showLocalAlert(speed);
       setState(() => alert = true);
     } else {
       setState(() => alert = false);
@@ -227,6 +230,7 @@ class _DashboardState extends State<Dashboard> {
   void dispose() {
     _accelSub?.cancel();
     _posSub?.cancel();
+    _screenSub?.cancel(); // <- Hủy listener
     super.dispose();
   }
 

@@ -65,6 +65,7 @@
 		<string>location</string>
 		<string>audio</string>
 		<string>processing</string>
+		<string>fetch</string> <!-- để app có thể fetch event khi gần background -->
 	</array>
 
 	<!-- 🔔 Cho phép phát thông báo khi nền -->
