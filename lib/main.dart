@@ -138,7 +138,12 @@ class _DashboardState extends State<Dashboard> {
   bool screenOn = true;
 
   final List<double> _yBuffer = [];
+<<<<<<< HEAD
   static const int _bufferSize = 30;
+=======
+  final List<double> _zBuffer = [];
+  final int _bufferSize = 20; // dùng cho RMS trục Y và Z
+>>>>>>> 42ab913abc0b39281a54ee76a8c771c8f63fa755
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<Position>? _posSub;
   final FlutterLocalNotificationsPlugin _localNotif =
@@ -205,6 +210,13 @@ class _DashboardState extends State<Dashboard> {
       });
       _yBuffer.add(y);
       if (_yBuffer.length > _bufferSize) _yBuffer.removeAt(0);
+<<<<<<< HEAD
+=======
+
+      _zBuffer.add(event.z);
+      if (_zBuffer.length > _bufferSize) _zBuffer.removeAt(0);
+
+>>>>>>> 42ab913abc0b39281a54ee76a8c771c8f63fa755
       _checkAlert();
     });
   }
@@ -218,7 +230,14 @@ class _DashboardState extends State<Dashboard> {
       return;
 
     const settings = LocationSettings(
+<<<<<<< HEAD
         accuracy: LocationAccuracy.bestForNavigation, distanceFilter: 1);
+=======
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 1,
+    );
+
+>>>>>>> 42ab913abc0b39281a54ee76a8c771c8f63fa755
     _posSub = Geolocator.getPositionStream(locationSettings: settings)
         .listen((Position pos) {
       setState(() {
@@ -235,6 +254,7 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _checkAlert() async {
+<<<<<<< HEAD
     bool overSpeed = speed > 1.0;
     bool yTilted = y > 5.0;
     bool zValid = z < 6.0;
@@ -243,6 +263,26 @@ class _DashboardState extends State<Dashboard> {
     bool usingNetwork = netSpeed > 0.5;
 
     if (overSpeed && yTilted && zValid && rmsYStable && screenOn && usingNetwork) {
+=======
+    // RMS trục Y
+    final rmsY = _yBuffer.isEmpty
+        ? 0.0
+        : sqrt(_yBuffer.fold<double>(0, (sum, val) => sum + val * val) /
+            _yBuffer.length);
+
+    // RMS trục Z
+    final rmsZ = _zBuffer.isEmpty
+        ? 0.0
+        : sqrt(_zBuffer.fold<double>(0, (sum, val) => sum + val * val) /
+            _zBuffer.length);
+
+    bool overSpeed = speed > 5;
+    bool yTilted = y > 5.0; // CHỈ cảnh báo khi y > 5.0 (bỏ abs)
+    bool rmsYValid = rmsY >= 0.5 && rmsY <= 3.0;
+    bool rmsZValid = rmsZ <= 1.5; // RMS trục Z trong khoảng 0 - 1.5
+
+    if (overSpeed && yTilted && rmsYValid && rmsZValid && screenOn) {
+>>>>>>> 42ab913abc0b39281a54ee76a8c771c8f63fa755
       if (!alert) {
         await _showLocalAlert(speed);
       }
@@ -330,10 +370,38 @@ class _DashboardState extends State<Dashboard> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
+<<<<<<< HEAD
             onPressed: _toggleBackgroundMonitor,
             icon: Icon(
               monitoring ? Icons.pause_circle_filled : Icons.play_circle_fill,
               size: 28,
+=======
+            const SizedBox(height: 20),
+            _buildAccelCard(),
+            const SizedBox(height: 20),
+            _buildSpeedCard(),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed:
+                        monitoringBackground ? null : startBackgroundMonitoring,
+                    child: const Text('Bắt đầu giám sát nền'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed:
+                        monitoringBackground ? stopBackgroundMonitoring : null,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent),
+                    child: const Text('Dừng'),
+                  ),
+                ),
+              ],
+>>>>>>> 42ab913abc0b39281a54ee76a8c771c8f63fa755
             ),
             label: Text(
               monitoring ? "Dừng giám sát nền" : "Bắt đầu giám sát nền",
@@ -369,6 +437,7 @@ class _DashboardState extends State<Dashboard> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
+<<<<<<< HEAD
           child: Column(children: [
             const Text("Tốc độ (km/h)",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -405,6 +474,25 @@ class _DashboardState extends State<Dashboard> {
               minHeight: 10,
             ),
           ]),
+=======
+          child: Column(
+            children: [
+              const Text("Tốc độ (km/h)",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text("${speed.toStringAsFixed(1)} km/h",
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              LinearProgressIndicator(
+                value: (speed / 100).clamp(0, 1),
+                color: alert ? Colors.redAccent : Colors.greenAccent,
+                backgroundColor: Colors.grey[700],
+                minHeight: 10,
+              ),
+            ],
+          ),
+>>>>>>> 42ab913abc0b39281a54ee76a8c771c8f63fa755
         ),
       );
 }
