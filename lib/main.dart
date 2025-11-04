@@ -9,7 +9,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:screen_state/screen_state.dart'; // <- Thêm
+
+// Conditional import từ platform/
+import 'platform/screen_monitor_stub.dart'
+    if (dart.library.io) 'platform/screen_monitor_ios.dart';
 
 const MethodChannel _nativeChannel = MethodChannel('driver_monitor/native');
 
@@ -51,6 +54,7 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
+  // Sensor data
   double x = 0, y = 0, z = 0;
   double speed = 0;
   bool alert = false;
@@ -65,19 +69,33 @@ class _DashboardState extends State<Dashboard> {
 
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<Position>? _posSub;
-  StreamSubscription<ScreenStateEvent>? _screenSub; // <- Thêm
-  Screen? _screenManager; // <- Thêm
-  final FlutterLocalNotificationsPlugin _localNotif = FlutterLocalNotificationsPlugin();
+
+  // iOS screen monitor
+  ScreenMonitor? _screenMonitor;
+
+  final FlutterLocalNotificationsPlugin _localNotif =
+      FlutterLocalNotificationsPlugin();
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
     _requestPermissions();
-    if (Platform.isIOS) _setupNativeCallback();
+
+    if (Platform.isIOS) {
+      _setupNativeCallback();
+
+      // Khởi tạo screen monitor iOS
+      _screenMonitor = ScreenMonitor();
+      _screenMonitor!.start((on) {
+        setState(() {
+          screenOn = on;
+        });
+      });
+    }
+
     _listenSensors();
     _listenLocation();
-    _startScreenListener(); // <- Thêm
   }
 
   Future<void> _requestPermissions() async {
@@ -166,23 +184,6 @@ class _DashboardState extends State<Dashboard> {
     });
   }
 
-  void _startScreenListener() {
-    _screenManager = Screen();
-    try {
-      _screenSub = _screenManager!.screenStateStream.listen((event) {
-        setState(() {
-          if (event == ScreenStateEvent.SCREEN_ON) {
-            screenOn = true;
-          } else if (event == ScreenStateEvent.SCREEN_OFF) {
-            screenOn = false;
-          }
-        });
-      });
-    } on ScreenStateException catch (e) {
-      debugPrint("Screen state error: $e");
-    }
-  }
-
   double _calculateStdDev(List<double> values) {
     if (values.isEmpty) return 0.0;
     double mean = values.reduce((a, b) => a + b) / values.length;
@@ -197,7 +198,6 @@ class _DashboardState extends State<Dashboard> {
     double stdDevYLong = _calculateStdDev(_yBufferLong);
     bool stdDevYStable = stdDevYLong <= 1.5;
 
-    // Cảnh báo chỉ khi màn hình bật hoặc mở khóa
     if (overSpeed && isTilted && gravityOK && stdDevYStable && screenOn) {
       if (!alert) await _showLocalAlert(speed);
       setState(() => alert = true);
@@ -230,7 +230,10 @@ class _DashboardState extends State<Dashboard> {
   void dispose() {
     _accelSub?.cancel();
     _posSub?.cancel();
-    _screenSub?.cancel(); // <- Hủy listener
+    if (Platform.isIOS) {
+      _screenMonitor?.stop();
+      _screenMonitor = null;
+    }
     super.dispose();
   }
 
@@ -282,18 +285,15 @@ class _DashboardState extends State<Dashboard> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed:
-                        monitoringBackground ? null : startBackgroundMonitoring,
+                    onPressed: monitoringBackground ? null : startBackgroundMonitoring,
                     child: const Text('Bắt đầu giám sát nền'),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed:
-                        monitoringBackground ? stopBackgroundMonitoring : null,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent),
+                    onPressed: monitoringBackground ? stopBackgroundMonitoring : null,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
                     child: const Text('Dừng'),
                   ),
                 ),
@@ -305,8 +305,7 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _buildAccelCard(
-          double stdDevYShort, double stdDevYLong, double g, double tilt) =>
+  Widget _buildAccelCard(double stdDevYShort, double stdDevYLong, double g, double tilt) =>
       Card(
         color: Colors.blueGrey[800],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -341,8 +340,7 @@ class _DashboardState extends State<Dashboard> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Text("${speed.toStringAsFixed(1)} km/h",
-                  style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               LinearProgressIndicator(
                 value: (speed / 100).clamp(0, 1),
