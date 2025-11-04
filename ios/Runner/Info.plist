@@ -2,6 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -29,13 +30,13 @@
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 
+	<!-- 🚀 Hướng xoay màn hình -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -49,27 +50,30 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 
-	<!-- 🚀 QUYỀN VÀ CHẾ ĐỘ NỀN -->
+	<!-- ✅ QUYỀN TRUY CẬP NGƯỜI DÙNG -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Ứng dụng cần quyền truy cập vị trí để đo tốc độ khi lái xe.</string>
+	<string>Ứng dụng cần truy cập vị trí để đo tốc độ kết nối mạng và phát hiện chuyển động.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Ứng dụng cần truy cập vị trí ngay cả khi chạy nền để đo tốc độ mạng và hành trình di chuyển.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Ứng dụng cần truy cập vị trí ngay cả khi đang chạy nền để giám sát tốc độ di chuyển.</string>
+	<string>Ứng dụng cần quyền truy cập vị trí liên tục để theo dõi kết nối và vị trí.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Ứng dụng cần quyền truy cập cảm biến chuyển động để phát hiện điện thoại nghiêng khi lái xe.</string>
+	<string>Ứng dụng cần quyền truy cập cảm biến chuyển động để phát hiện thao tác điện thoại.</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Ứng dụng cần quyền gửi thông báo cảnh báo an toàn khi lái xe.</string>
+	<string>Ứng dụng cần quyền gửi thông báo và thu thập dữ liệu cảm biến phục vụ cảnh báo an toàn.</string>
 
-	<!-- ✅ Chạy nền & phát âm thanh -->
+	<!-- 🔔 Cho phép thông báo nền -->
+	<key>UNUserNotificationCenter</key>
+	<true/>
+
+	<!-- 🔊 CÁC CHẾ ĐỘ CHẠY NỀN -->
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>fetch</string>
 		<string>location</string>
 		<string>audio</string>
 		<string>processing</string>
 	</array>
-
-	<!-- 🔔 Cho phép phát thông báo khi nền -->
-	<key>UNUserNotificationCenter</key>
-	<true/>
 
 </dict>
 </plist>
