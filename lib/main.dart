@@ -56,9 +56,13 @@ class _DashboardState extends State<Dashboard> {
   bool monitoringBackground = false;
   bool screenOn = true;
 
-  // Bộ đệm để tính RMS của Y
+  // Bộ đệm để tính RMS ngắn hạn (≈0.5s)
   final List<double> _yBuffer = [];
-  static const int _bufferSize = 30; // lấy 30 mẫu gần nhất (≈ 0.5s)
+  static const int _bufferSize = 30; // 30 mẫu ~0.5 giây (30 Hz)
+
+  // Bộ đệm để tính RMS dài hạn (3 giây)
+  final List<double> _yBufferLong = [];
+  static const int _bufferLongSize = 90; // 90 mẫu ~3 giây (30 Hz)
 
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<Position>? _posSub;
@@ -134,10 +138,16 @@ class _DashboardState extends State<Dashboard> {
       double g = sqrt(x * x + y * y + z * z);
       double tilt = (z / g).abs(); // 1 = đứng thẳng, 0 = nằm ngang
 
-      // Cập nhật buffer Y
+      // Cập nhật buffer ngắn hạn
       _yBuffer.add(y);
       if (_yBuffer.length > _bufferSize) {
         _yBuffer.removeAt(0);
+      }
+
+      // Cập nhật buffer dài hạn
+      _yBufferLong.add(y);
+      if (_yBufferLong.length > _bufferLongSize) {
+        _yBufferLong.removeAt(0);
       }
 
       _checkAlert(g, tilt);
@@ -176,8 +186,10 @@ class _DashboardState extends State<Dashboard> {
     bool overSpeed = speed > 1.0; // tốc độ > 1 km/h
     bool isTilted = tilt < 0.6; // nghiêng nhiều (mặt Z không còn hướng lên)
     bool gravityOK = g > 8.0 && g < 11.0; // lực trọng trường hợp lý
-    double rmsY = _calculateRMS(_yBuffer);
-    bool rmsYStable = rmsY >= 0.5 && rmsY <= 3;
+
+    // Tính RMS dài hạn 3 giây
+    double rmsYLong = _calculateRMS(_yBufferLong);
+    bool rmsYStable = rmsYLong >= 0.5 && rmsYLong <= 3;
 
     if (overSpeed && isTilted && gravityOK && rmsYStable && screenOn) {
       if (!alert) {
@@ -220,7 +232,8 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   Widget build(BuildContext context) {
-    double rmsY = _calculateRMS(_yBuffer);
+    double rmsYShort = _calculateRMS(_yBuffer);
+    double rmsYLong = _calculateRMS(_yBufferLong);
     double g = sqrt(x * x + y * y + z * z);
     double tilt = (z / g).abs();
 
@@ -255,7 +268,7 @@ class _DashboardState extends State<Dashboard> {
               ),
             ),
             const SizedBox(height: 20),
-            _buildAccelCard(rmsY, g, tilt),
+            _buildAccelCard(rmsYShort, rmsYLong, g, tilt),
             const SizedBox(height: 20),
             _buildSpeedCard(),
             const SizedBox(height: 20),
@@ -286,7 +299,9 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _buildAccelCard(double rmsY, double g, double tilt) => Card(
+  Widget _buildAccelCard(
+          double rmsYShort, double rmsYLong, double g, double tilt) =>
+      Card(
         color: Colors.blueGrey[800],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
@@ -300,7 +315,8 @@ class _DashboardState extends State<Dashboard> {
               Text("Y = ${y.toStringAsFixed(2)}"),
               Text("Z = ${z.toStringAsFixed(2)}"),
               const SizedBox(height: 10),
-              Text("RMS(Y) = ${rmsY.toStringAsFixed(2)}"),
+              Text("RMS(Y) ngắn hạn = ${rmsYShort.toStringAsFixed(2)}"),
+              Text("RMS(Y) dài hạn (3 giây) = ${rmsYLong.toStringAsFixed(2)}"),
               Text("G (tổng vector) = ${g.toStringAsFixed(2)} m/s²"),
               Text("Tilt (độ nghiêng Z) = ${(tilt * 100).toStringAsFixed(1)}%"),
             ],
