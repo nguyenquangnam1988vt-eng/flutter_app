@@ -61,6 +61,11 @@ class _DashboardState extends State<Dashboard> {
   bool monitoringBackground = false;
   bool screenOn = true;
 
+  // Bộ đệm tilt và hysteresis
+  final List<double> _tiltHistory = [];
+  static const int _tiltBufferSize = 20;
+  double _lastTilt = 1.0;
+
   final List<double> _yBuffer = [];
   static const int _bufferSize = 30;
 
@@ -187,16 +192,32 @@ class _DashboardState extends State<Dashboard> {
   double _calculateStdDev(List<double> values) {
     if (values.isEmpty) return 0.0;
     double mean = values.reduce((a, b) => a + b) / values.length;
-    double sumSquaredDiff = values.fold(0.0, (sum, val) => sum + pow(val - mean, 2));
+    double sumSquaredDiff =
+        values.fold(0.0, (sum, val) => sum + pow(val - mean, 2));
     return sqrt(sumSquaredDiff / values.length);
   }
 
+  // ==== HÀM ĐÃ ĐƯỢC CẢI TIẾN ====
   void _checkAlert(double g, double tilt) async {
     bool overSpeed = speed > 5.0;
-    bool isTilted = tilt > 0.6;
     bool gravityOK = g > 8.0 && g < 11.0;
     double stdDevYLong = _calculateStdDev(_yBufferLong);
     bool stdDevYStable = stdDevYLong <= 1.5;
+
+    // Bộ đệm tilt để tránh dao động tức thời
+    _tiltHistory.add(tilt);
+    if (_tiltHistory.length > _tiltBufferSize) _tiltHistory.removeAt(0);
+
+    // Tính trung bình tilt (làm mượt)
+    double avgTilt =
+        _tiltHistory.reduce((a, b) => a + b) / _tiltHistory.length;
+
+    // Ngưỡng nghiêng giảm nhạy hơn
+    bool isTilted = avgTilt < 0.5;
+
+    // Hysteresis tránh nhấp nháy
+    if (isTilted && _lastTilt >= 0.55) isTilted = false;
+    _lastTilt = avgTilt;
 
     if (overSpeed && isTilted && gravityOK && stdDevYStable && screenOn) {
       if (!alert) await _showLocalAlert(speed);
@@ -204,6 +225,9 @@ class _DashboardState extends State<Dashboard> {
     } else {
       setState(() => alert = false);
     }
+
+    // debug để kiểm tra giá trị nghiêng
+    // debugPrint("Tilt=$tilt avgTilt=$avgTilt isTilted=$isTilted speed=$speed");
   }
 
   Future<void> startBackgroundMonitoring() async {
@@ -293,7 +317,8 @@ class _DashboardState extends State<Dashboard> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: monitoringBackground ? stopBackgroundMonitoring : null,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent),
                     child: const Text('Dừng'),
                   ),
                 ),
@@ -305,23 +330,28 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  Widget _buildAccelCard(double stdDevYShort, double stdDevYLong, double g, double tilt) =>
+  Widget _buildAccelCard(
+          double stdDevYShort, double stdDevYLong, double g, double tilt) =>
       Card(
         color: Colors.blueGrey[800],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
               const Text("Cảm biến gia tốc (iOS)",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style:
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Text("X = ${x.toStringAsFixed(2)}"),
               Text("Y = ${y.toStringAsFixed(2)}"),
               Text("Z = ${z.toStringAsFixed(2)}"),
               const SizedBox(height: 10),
-              Text("Độ lệch chuẩn Y ngắn hạn = ${stdDevYShort.toStringAsFixed(2)}"),
-              Text("Độ lệch chuẩn Y dài hạn (3 giây) = ${stdDevYLong.toStringAsFixed(2)}"),
+              Text(
+                  "Độ lệch chuẩn Y ngắn hạn = ${stdDevYShort.toStringAsFixed(2)}"),
+              Text(
+                  "Độ lệch chuẩn Y dài hạn (3 giây) = ${stdDevYLong.toStringAsFixed(2)}"),
               Text("G (tổng vector) = ${g.toStringAsFixed(2)} m/s²"),
               Text("Tilt (độ nghiêng Z) = ${(tilt * 100).toStringAsFixed(1)}%"),
             ],
@@ -331,16 +361,19 @@ class _DashboardState extends State<Dashboard> {
 
   Widget _buildSpeedCard() => Card(
         color: Colors.blueGrey[800],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
               const Text("Tốc độ (km/h)",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style:
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Text("${speed.toStringAsFixed(1)} km/h",
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               LinearProgressIndicator(
                 value: (speed / 100).clamp(0, 1),
