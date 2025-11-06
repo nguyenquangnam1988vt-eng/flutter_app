@@ -54,28 +54,25 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  // Sensor data
   double x = 0, y = 0, z = 0;
   double speed = 0;
   bool alert = false;
   bool monitoringBackground = false;
   bool screenOn = true;
 
-  // Bộ đệm tilt và hysteresis
   final List<double> _tiltHistory = [];
-  static const int _tiltBufferSize = 20;
+  static const int _tiltBufferSize = 250;
   double _lastTilt = 1.0;
 
   final List<double> _yBuffer = [];
   static const int _bufferSize = 30;
 
   final List<double> _yBufferLong = [];
-  static const int _bufferLongSize = 90;
+  static const int _bufferLongSize = 60;
 
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<Position>? _posSub;
 
-  // iOS screen monitor
   ScreenMonitor? _screenMonitor;
 
   final FlutterLocalNotificationsPlugin _localNotif =
@@ -87,10 +84,14 @@ class _DashboardState extends State<Dashboard> {
     super.initState();
     _requestPermissions();
 
+    // ⚙️ Cấu hình AudioPlayer trước khi sử dụng
+    _audioPlayer
+      ..setReleaseMode(ReleaseMode.stop)
+      ..setVolume(1.0);
+
     if (Platform.isIOS) {
       _setupNativeCallback();
 
-      // Khởi tạo screen monitor iOS
       _screenMonitor = ScreenMonitor();
       _screenMonitor!.start((on) {
         setState(() {
@@ -114,12 +115,12 @@ class _DashboardState extends State<Dashboard> {
       if (call.method == 'backgroundSpeedAlert') {
         final args = call.arguments as Map<dynamic, dynamic>?;
         final speed = (args?['speed'] ?? 0).toDouble();
-        _showLocalAlert(speed);
+        _showLocalAlert(speed, 1.0); // tilt mặc định 1.0 khi không có sensor
       }
     });
   }
 
-  Future<void> _showLocalAlert(double spd) async {
+  Future<void> _showLocalAlert(double spd, double tilt) async {
     final androidDetails = AndroidNotificationDetails(
       'driver_alerts',
       'Driver Alerts',
@@ -137,7 +138,7 @@ class _DashboardState extends State<Dashboard> {
     await _localNotif.show(
       999,
       '⚠️ Cảnh báo',
-      'Phát hiện sử dụng điện thoại khi di chuyển ở ${spd.toStringAsFixed(1)} km/h',
+      'Phát hiện sử dụng điện thoại khi di chuyển ở ${spd.toStringAsFixed(1)} km/h (nghiêng ${(tilt * 100).toStringAsFixed(1)}%)',
       NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
 
@@ -173,8 +174,10 @@ class _DashboardState extends State<Dashboard> {
     if (!await Geolocator.isLocationServiceEnabled()) return;
 
     LocationPermission p = await Geolocator.checkPermission();
-    if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
-    if (p == LocationPermission.denied || p == LocationPermission.deniedForever) return;
+    if (p == LocationPermission.denied)
+      p = await Geolocator.requestPermission();
+    if (p == LocationPermission.denied || p == LocationPermission.deniedForever)
+      return;
 
     const settings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
@@ -197,37 +200,32 @@ class _DashboardState extends State<Dashboard> {
     return sqrt(sumSquaredDiff / values.length);
   }
 
-  // ==== HÀM ĐÃ ĐƯỢC CẢI TIẾN ====
+  // ✅ Logic mới đảm bảo rõ ràng: nghiêng <0.5 bật, ngửa >0.7 tắt, giữa giữ nguyên
   void _checkAlert(double g, double tilt) async {
     bool overSpeed = speed > 5.0;
     bool gravityOK = g > 8.0 && g < 11.0;
     double stdDevYLong = _calculateStdDev(_yBufferLong);
     bool stdDevYStable = stdDevYLong <= 1.5;
 
-    // Bộ đệm tilt để tránh dao động tức thời
     _tiltHistory.add(tilt);
     if (_tiltHistory.length > _tiltBufferSize) _tiltHistory.removeAt(0);
 
-    // Tính trung bình tilt (làm mượt)
-    double avgTilt =
-        _tiltHistory.reduce((a, b) => a + b) / _tiltHistory.length;
+    double avgTilt = _tiltHistory.reduce((a, b) => a + b) / _tiltHistory.length;
 
-    // Ngưỡng nghiêng giảm nhạy hơn
-    bool isTilted = avgTilt < 0.5;
+    bool isTilted = alert; // mặc định giữ nguyên trạng thái hiện tại
 
-    // Hysteresis tránh nhấp nháy
-    if (isTilted && _lastTilt >= 0.55) isTilted = false;
-    _lastTilt = avgTilt;
-
-    if (overSpeed && isTilted && gravityOK && stdDevYStable && screenOn) {
-      if (!alert) await _showLocalAlert(speed);
-      setState(() => alert = true);
-    } else {
-      setState(() => alert = false);
+    if (avgTilt < 0.5) {
+      isTilted = true; // nghiêng → bật cảnh báo
+    } else if (avgTilt > 0.7) {
+      isTilted = false; // ngửa → tắt cảnh báo
     }
 
-    // debug để kiểm tra giá trị nghiêng
-    // debugPrint("Tilt=$tilt avgTilt=$avgTilt isTilted=$isTilted speed=$speed");
+    if (overSpeed && isTilted && gravityOK && stdDevYStable && screenOn) {
+      if (!alert) await _showLocalAlert(speed, tilt);
+      setState(() => alert = true);
+    } else if (!isTilted || !overSpeed) {
+      setState(() => alert = false);
+    }
   }
 
   Future<void> startBackgroundMonitoring() async {
@@ -309,14 +307,16 @@ class _DashboardState extends State<Dashboard> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: monitoringBackground ? null : startBackgroundMonitoring,
+                    onPressed:
+                        monitoringBackground ? null : startBackgroundMonitoring,
                     child: const Text('Bắt đầu giám sát nền'),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: monitoringBackground ? stopBackgroundMonitoring : null,
+                    onPressed:
+                        monitoringBackground ? stopBackgroundMonitoring : null,
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.redAccent),
                     child: const Text('Dừng'),
@@ -334,15 +334,13 @@ class _DashboardState extends State<Dashboard> {
           double stdDevYShort, double stdDevYLong, double g, double tilt) =>
       Card(
         color: Colors.blueGrey[800],
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
               const Text("Cảm biến gia tốc (iOS)",
-                  style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Text("X = ${x.toStringAsFixed(2)}"),
               Text("Y = ${y.toStringAsFixed(2)}"),
@@ -361,15 +359,13 @@ class _DashboardState extends State<Dashboard> {
 
   Widget _buildSpeedCard() => Card(
         color: Colors.blueGrey[800],
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
               const Text("Tốc độ (km/h)",
-                  style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               Text("${speed.toStringAsFixed(1)} km/h",
                   style: const TextStyle(
