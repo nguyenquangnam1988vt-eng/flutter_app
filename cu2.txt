@@ -352,119 +352,69 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: Colors.grey[900],
       appBar: AppBar(
-        title: const Text("Driver Safety Monitor"),
+        title: const Text("Driver Phone Monitor"),
         backgroundColor: Colors.blueGrey[900],
-        elevation: 0,
       ),
-      body: SafeArea(
-        bottom: true, // 🆕 QUAN TRỌNG: Đảm bảo không bị nút home che
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // 🚨 COMPACT STATUS CARD
-            Container(
-              height: 70, // 🆕 Giảm chiều cao
-              margin: const EdgeInsets.all(16),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              height: 80,
+              width: double.infinity,
               decoration: BoxDecoration(
                 color: getAlertColor(),
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: getAlertColor().withOpacity(0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
               ),
+              alignment: Alignment.center,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    alert ? "⚠️ ĐANG SỬ DỤNG ĐIỆN THOẠI!" : "✅ AN TOÀN",
+                    alert
+                        ? "⚠️ Cảnh báo: Đang sử dụng điện thoại!"
+                        : "✅ An toàn",
                     style: const TextStyle(
                       color: Colors.black,
                       fontWeight: FontWeight.bold,
-                      fontSize: 16, // 🆕 Giảm font size
+                      fontSize: 18,
                     ),
                   ),
-                  const SizedBox(height: 4),
                   Text(
-                    "Tilt: ${avgTiltPercent.toStringAsFixed(1)}% | Tốc độ: ${speed.toStringAsFixed(1)}km/h",
+                    "Tilt trung bình: ${avgTiltPercent.toStringAsFixed(1)}%",
                     style: const TextStyle(
                       color: Colors.black87,
-                      fontSize: 12, // 🆕 Giảm font size
+                      fontSize: 14,
                     ),
                   ),
                 ],
               ),
             ),
-            
-            // 📊 SCROLLABLE CONTENT
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  children: [
-                    _buildCompactAccelCard(stdDevYShort, stdDevYLong, g, avgTiltPercent, currentTiltPercent),
-                    const SizedBox(height: 12),
-                    _buildCompactSpeedCard(),
-                    const SizedBox(height: 12),
-                    _buildAppStateCard(),
-                    const SizedBox(height: 20), // 🆕 Thêm khoảng trống cuối để đảm bảo không bị che
-                  ],
+            const SizedBox(height: 20),
+            _buildAccelCard(stdDevYShort, stdDevYLong, g, avgTiltPercent, currentTiltPercent),
+            const SizedBox(height: 20),
+            _buildSpeedCard(),
+            const SizedBox(height: 20),
+            _buildAppStateCard(),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: monitoringBackground ? null : startBackgroundMonitoring,
+                    child: const Text('Bắt đầu giám sát nền'),
+                  ),
                 ),
-              ),
-            ),
-            
-            // 🎛️ FIXED BUTTONS - Luôn hiển thị ở dưới
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.grey[900],
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: monitoringBackground ? null : startBackgroundMonitoring,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: monitoringBackground ? Colors.grey : Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'BẮT ĐẦU',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: monitoringBackground ? stopBackgroundMonitoring : null,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                    child: const Text('Dừng'),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: monitoringBackground ? stopBackgroundMonitoring : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: monitoringBackground ? Colors.redAccent : Colors.grey,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'DỪNG',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -472,8 +422,8 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     );
   }
 
-  // 🆕 COMPACT ACCEL CARD
-  Widget _buildCompactAccelCard(double stdDevYShort, double stdDevYLong, double g, double avgTiltPercent, double currentTiltPercent) {
+  Widget _buildAccelCard(
+      double stdDevYShort, double stdDevYLong, double g, double avgTiltPercent, double currentTiltPercent) {
     
     // 🎯 XÁC ĐỊNH TRẠNG THÁI TILT
     String tiltStatus = "KHÔNG XEM";
@@ -489,90 +439,59 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     return Card(
       color: Colors.blueGrey[800],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 4,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.phone_android, color: Colors.blue, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  "CẢM BIẾN ĐIỆN THOẠI",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            const Text("Cảm biến gia tốc",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSensorValue("X", x),
-                    _buildSensorValue("Y", y),
-                    _buildSensorValue("Z", z),
+                    Text("X = ${x.toStringAsFixed(2)}"),
+                    Text("Y = ${y.toStringAsFixed(2)}"),
+                    Text("Z = ${z.toStringAsFixed(2)}"),
                   ],
                 ),
                 Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSensorValue("G", g, unit: "m/s²"),
-                    _buildSensorValue("Tilt", currentTiltPercent, unit: "%", isPercent: true),
+                    Text("G = ${g.toStringAsFixed(2)} m/s²"),
+                    Text("Tilt = ${currentTiltPercent.toStringAsFixed(1)}%"),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            // 🎯 TILT STATUS
+            const SizedBox(height: 10),
+            Text("Độ lệch chuẩn Y ngắn hạn = ${stdDevYShort.toStringAsFixed(2)}"),
+            Text("Độ lệch chuẩn Y dài hạn = ${stdDevYLong.toStringAsFixed(2)}"),
+            
+            // 🎯 HIỂN THỊ TRẠNG THÁI TILT
+            const SizedBox(height: 10),
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: tiltColor.withOpacity(0.15),
+                color: tiltColor.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: tiltColor, width: 1.5),
+                border: Border.all(color: tiltColor, width: 1),
               ),
-              child: Column(
-                children: [
-                  Text(
-                    "TILT TRUNG BÌNH: ${avgTiltPercent.toStringAsFixed(1)}%",
-                    style: TextStyle(
-                      color: tiltColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    tiltStatus,
-                    style: TextStyle(
-                      color: tiltColor,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+              child: Text(
+                "Tilt trung bình: ${avgTiltPercent.toStringAsFixed(1)}% - $tiltStatus",
+                style: TextStyle(
+                  color: tiltColor,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                Text(
-                  "Ổn định: ${stdDevYShort.toStringAsFixed(2)}",
-                  style: TextStyle(
-                    color: stdDevYShort <= 1.5 ? Colors.green : Colors.orange,
-                    fontSize: 11,
-                  ),
-                ),
-                Text(
-                  "Trung bình: ${stdDevYLong.toStringAsFixed(2)}",
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ],
+            
+            const SizedBox(height: 10),
+            Text(
+              "Cảm biến: ${x != 0 || y != 0 || z != 0 ? '🟢 Đang hoạt động' : '🔴 Không có dữ liệu'}",
+              style: TextStyle(
+                color: (x != 0 || y != 0 || z != 0) ? Colors.green : Colors.red,
+              ),
             ),
           ],
         ),
@@ -580,82 +499,40 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildSensorValue(String label, double value, {String unit = "", bool isPercent = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Text(
-        "$label: ${value.toStringAsFixed(1)}${isPercent ? '%' : unit}",
-        style: const TextStyle(fontSize: 13),
+  Widget _buildSpeedCard() => Card(
+    color: Colors.blueGrey[800],
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          const Text("Tốc độ (km/h)",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Text("${speed.toStringAsFixed(1)} km/h",
+              style: const TextStyle(
+                  fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: (speed / 100).clamp(0, 1),
+            color: speed > 5.0 ? Colors.orange : Colors.green,
+            backgroundColor: Colors.grey[700],
+            minHeight: 10,
+          ),
+          Text(
+            speed > 5.0 ? "Đang di chuyển" : "Đứng yên",
+            style: TextStyle(
+              color: speed > 5.0 ? Colors.orange : Colors.green,
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  // 🆕 COMPACT SPEED CARD
-  Widget _buildCompactSpeedCard() {
-    bool isMoving = speed > 5.0;
-    
-    return Card(
-      color: Colors.blueGrey[800],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.speed, color: Colors.orange, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  "TỐC ĐỘ DI CHUYỂN",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "${speed.toStringAsFixed(1)}",
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: isMoving ? Colors.orange : Colors.green,
-              ),
-            ),
-            Text(
-              "km/h",
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: (speed / 120).clamp(0, 1),
-              color: isMoving ? Colors.orange : Colors.green,
-              backgroundColor: Colors.grey[700],
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isMoving ? "🚗 ĐANG DI CHUYỂN" : "🛑 ĐỨNG YÊN",
-              style: TextStyle(
-                color: isMoving ? Colors.orange : Colors.green,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    ),
+  );
 
   Widget _buildAppStateCard() => Card(
     color: Colors.blueGrey[800],
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    elevation: 2,
     child: Padding(
       padding: const EdgeInsets.all(12.0),
       child: Row(
@@ -664,15 +541,13 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
           Icon(
             _appInForeground ? Icons.check_circle : Icons.phone_android,
             color: _appInForeground ? Colors.green : Colors.orange,
-            size: 20,
           ),
           const SizedBox(width: 8),
           Text(
-            _appInForeground ? "Ứng dụng đang hoạt động" : "Ứng dụng ở chế độ nền",
+            _appInForeground ? "Ứng dụng đang mở" : "Ứng dụng ở nền",
             style: TextStyle(
               color: _appInForeground ? Colors.green : Colors.orange,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
